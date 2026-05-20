@@ -19,6 +19,7 @@ from typing import List, Optional, Sequence, Tuple
 
 from algorithm import bfs as bfs_module
 from algorithm import dfs as dfs_module
+from algorithm import idfs as idfs_module
 from algorithm.bfs import neighbors as _neighbors
 
 State = Tuple[int, int, int, int, int, int, int, int, int]
@@ -95,7 +96,9 @@ class PuzzleController:
             path, visited_count = bfs_module.bfs_with_stats(start, goal)
         elif algo_name == "DFS":
             path, visited_count = dfs_module.dfs_with_stats(start, goal)
+        elif algo_name == "IDFS":
+            path, visited_count = idfs_module.idfs_with_stats(start, goal)
         else:
-            raise ValueError("Thuật toán không hợp lệ. Chỉ hỗ trợ BFS/DFS.")
+            raise ValueError("Thuật toán không hợp lệ. Chỉ hỗ trợ BFS/DFS/IDFS.")
         t1 = time.time()
         return path, (t1 - t0), visited_count

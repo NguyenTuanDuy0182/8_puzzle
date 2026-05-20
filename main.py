@@ -71,7 +71,7 @@ class PuzzleUI:
         self.goal_entry.bind('<Return>', lambda e: self.on_goal_enter())
 
         tk.Label(self.left, text='Chọn thuật toán:', fg='white', bg='#0f1720', font=self.font_label).pack(anchor='w')
-        self.algo = ttk.Combobox(self.left, values=['BFS', 'DFS'], state='readonly', width=17, font=self.font_entry)
+        self.algo = ttk.Combobox(self.left, values=['BFS', 'DFS', 'IDFS'], state='readonly', width=17, font=self.font_entry)
         self.algo.set('BFS')
         self.algo.pack(pady=6, fill='x')
 
@@ -119,6 +119,34 @@ class PuzzleUI:
         self.next_btn = tk.Button(self.nav_frame, text='Next', command=self.next_step, bg='#0b1220', fg='white', font=self.font_button, width=9)
         self.prev_btn.grid(row=0, column=0, padx=6)
         self.next_btn.grid(row=0, column=1, padx=6)
+
+        # Thanh chỉnh tốc độ animation (ms / bước)
+        self.anim_delay_ms = tk.IntVar(value=500)
+        self.speed_frame = tk.Frame(self.right, bg='#0f1720')
+        self.speed_frame.pack(pady=(0, 8), fill='x')
+        tk.Label(
+            self.speed_frame,
+            text='Tốc độ animation (ms/bước):',
+            fg='white',
+            bg='#0f1720',
+            font=self.font_label,
+        ).pack(anchor='w')
+        self.speed_scale = tk.Scale(
+            self.speed_frame,
+            from_=1000,
+            to=50,
+            orient='horizontal',
+            variable=self.anim_delay_ms,
+            resolution=10,
+            showvalue=True,
+            bg='#0f1720',
+            fg='white',
+            troughcolor='#0b1220',
+            highlightthickness=0,
+            bd=0,
+            font=self.font_label,
+        )
+        self.speed_scale.pack(fill='x')
 
         # Trạng thái animation
         self.solution = []
@@ -240,7 +268,7 @@ class PuzzleUI:
         self.goal_entry.config(state='normal')
         self.algo.config(state='readonly')
         # Tự chạy animation theo lời giải
-        self.start_animation(delay=500)
+        self.start_animation()
 
     def prev_step(self):
         if not self.solution: return
@@ -254,7 +282,7 @@ class PuzzleUI:
             self.current_index += 1
             self.update_grid(self.solution[self.current_index])
 
-    def start_animation(self, delay=500):
+    def start_animation(self):
         if not self.solution:
             return
         self.animating = True
@@ -264,15 +292,17 @@ class PuzzleUI:
         self.current_index = 0
         # Đảm bảo lưới đang hiển thị state ban đầu
         self.update_grid(self.solution[self.current_index])
-        self.root.after(delay, lambda: self.animate_next(delay))
+        delay = max(10, int(self.anim_delay_ms.get()))
+        self.root.after(delay, self.animate_next)
 
-    def animate_next(self, delay):
+    def animate_next(self):
         if not self.animating:
             return
         if self.current_index < len(self.solution)-1:
             self.current_index += 1
             self.update_grid(self.solution[self.current_index])
-            self.root.after(delay, lambda: self.animate_next(delay))
+            delay = max(10, int(self.anim_delay_ms.get()))
+            self.root.after(delay, self.animate_next)
         else:
             # Kết thúc
             self.animating = False
