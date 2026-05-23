@@ -71,7 +71,7 @@ class PuzzleUI:
         self.goal_entry.bind('<Return>', lambda e: self.on_goal_enter())
 
         tk.Label(self.left, text='Chọn thuật toán:', fg='white', bg='#0f1720', font=self.font_label).pack(anchor='w')
-        self.algo = ttk.Combobox(self.left, values=['BFS', 'DFS', 'IDFS'], state='readonly', width=17, font=self.font_entry)
+        self.algo = ttk.Combobox(self.left, values=['BFS', 'DFS', 'IDFS', 'UCS'], state='readonly', width=17, font=self.font_entry)
         self.algo.set('BFS')
         self.algo.pack(pady=6, fill='x')
 
@@ -86,6 +86,8 @@ class PuzzleUI:
         self.time_label.pack(anchor='w')
         self.steps_label = tk.Label(self.info_frame, text='Số bước: -', fg='white', bg='#0f1720', font=self.font_label)
         self.steps_label.pack(anchor='w')
+        self.cost_label = tk.Label(self.info_frame, text='Tổng chi phí (g): -', fg='white', bg='#0f1720', font=self.font_label)
+        self.cost_label.pack(anchor='w')
         self.visited_label = tk.Label(self.info_frame, text='Số trạng thái đã duyệt: -', fg='white', bg='#0f1720', font=self.font_label)
         self.visited_label.pack(anchor='w')
 
@@ -184,6 +186,7 @@ class PuzzleUI:
         algo = self.algo.get()
         self.steps_text.delete('1.0', 'end')
         self.visited_count = None
+        self.cost_label.config(text='Tổng chi phí (g): -')
         self.visited_label.config(text='Số trạng thái đã duyệt: -')
         thread = threading.Thread(target=self.run_solver, args=(start, goal, algo), daemon=True)
         thread.start()
@@ -199,6 +202,7 @@ class PuzzleUI:
         self.solution = []
         self.current_index = 0
         self.visited_count = None
+        self.cost_label.config(text='Tổng chi phí (g): -')
         self.visited_label.config(text='Số trạng thái đã duyệt: -')
         self.prev_btn.config(state='normal')
         self.next_btn.config(state='normal')
@@ -218,6 +222,7 @@ class PuzzleUI:
         self.steps_text.delete('1.0', 'end')
         self.time_label.config(text='Thời gian chạy: -')
         self.steps_label.config(text='Số bước: -')
+        self.cost_label.config(text='Tổng chi phí (g): -')
         self.visited_label.config(text='Số trạng thái đã duyệt: -')
 
     def on_random_start(self):
@@ -235,9 +240,9 @@ class PuzzleUI:
 
     def run_solver(self, start, goal, algo):
         try:
-            path, duration, visited_count = self.controller.solve(start, goal, algo)
+            path, duration, visited_count, total_cost = self.controller.solve(start, goal, algo)
         except Exception:
-            path, duration, visited_count = None, 0.0, None
+            path, duration, visited_count, total_cost = None, 0.0, None, None
         if path is None:
             self.root.after(0, lambda: messagebox.showinfo('Kết quả', 'Không tìm thấy lời giải.'))
             def _unlock():
@@ -250,11 +255,15 @@ class PuzzleUI:
         self.solution = path
         self.visited_count = visited_count
         self.current_index = 0
-        self.root.after(0, lambda: self.on_solution_found(duration))
+        self.root.after(0, lambda: self.on_solution_found(duration, total_cost))
 
-    def on_solution_found(self, duration):
+    def on_solution_found(self, duration, total_cost):
         self.time_label.config(text=f'Thời gian chạy: {duration:.3f}s')
         self.steps_label.config(text=f'Số bước: {len(self.solution)-1}')
+        if total_cost is None:
+            self.cost_label.config(text='Tổng chi phí (g): -')
+        else:
+            self.cost_label.config(text=f'Tổng chi phí (g): {total_cost}')
         if self.visited_count is None:
             self.visited_label.config(text='Số trạng thái đã duyệt: -')
         else:

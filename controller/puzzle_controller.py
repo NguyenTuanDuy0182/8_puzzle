@@ -20,6 +20,7 @@ from typing import List, Optional, Sequence, Tuple
 from algorithm import bfs as bfs_module
 from algorithm import dfs as dfs_module
 from algorithm import idfs as idfs_module
+from algorithm import ucs as ucs_module
 from algorithm.bfs import neighbors as _neighbors
 
 State = Tuple[int, int, int, int, int, int, int, int, int]
@@ -89,16 +90,30 @@ class PuzzleController:
         return state
 
     @staticmethod
-    def solve(start: State, goal: State, algo_name: str) -> tuple[Optional[List[State]], float, int]:
-        """Chạy solver theo lựa chọn và trả về (path, thời_gian_giây, visited_count)."""
+    def solve(start: State, goal: State, algo_name: str) -> tuple[Optional[List[State]], float, int, int]:
+        """Chạy solver theo lựa chọn.
+
+        Returns:
+            (path, thời_gian_giây, visited_count, total_path_cost)
+
+        Ghi chú path cost (g(n)) đang dùng trong project này:
+            cost(state) = số ô khác goal (mặc định không tính ô trống 0)
+            g(start) = 0
+            g(child) = g(parent) + cost(child_state)
+        """
         t0 = time.time()
         if algo_name == "BFS":
             path, visited_count = bfs_module.bfs_with_stats(start, goal)
+            total_cost = ucs_module.path_cost(path, goal, include_blank=True) if path else 0
         elif algo_name == "DFS":
             path, visited_count = dfs_module.dfs_with_stats(start, goal)
+            total_cost = ucs_module.path_cost(path, goal, include_blank=True) if path else 0
         elif algo_name == "IDFS":
             path, visited_count = idfs_module.idfs_with_stats(start, goal)
+            total_cost = ucs_module.path_cost(path, goal, include_blank=True) if path else 0
+        elif algo_name == "UCS":
+            path, visited_count, total_cost = ucs_module.ucs_with_stats(start, goal, include_blank=True)
         else:
-            raise ValueError("Thuật toán không hợp lệ. Chỉ hỗ trợ BFS/DFS/IDFS.")
+            raise ValueError("Thuật toán không hợp lệ. Chỉ hỗ trợ BFS/DFS/IDFS/UCS.")
         t1 = time.time()
-        return path, (t1 - t0), visited_count
+        return path, (t1 - t0), visited_count, total_cost
