@@ -19,6 +19,8 @@ from typing import List, Optional, Sequence, Tuple
 
 from algorithm import bfs as bfs_module
 from algorithm import dfs as dfs_module
+from algorithm import a_star as a_star_module
+from algorithm import greedy as greedy_module
 from algorithm import idfs as idfs_module
 from algorithm import ucs as ucs_module
 from algorithm.bfs import neighbors as _neighbors
@@ -111,9 +113,15 @@ class PuzzleController:
         elif algo_name == "IDFS":
             path, visited_count = idfs_module.idfs_with_stats(start, goal)
             total_cost = ucs_module.path_cost(path, goal, include_blank=True) if path else 0
+        elif algo_name == "Greedy":
+            path, visited_count = greedy_module.greedy_with_stats(start, goal)
+            total_cost = ucs_module.path_cost(path, goal, include_blank=True) if path else 0
+        elif algo_name in ("A*", "AStar"):
+            path, visited_count, g_goal = a_star_module.a_star_with_stats(start, goal)
+            total_cost = g_goal if path else 0
         elif algo_name == "UCS":
             path, visited_count, total_cost = ucs_module.ucs_with_stats(start, goal, include_blank=True)
         else:
-            raise ValueError("Thuật toán không hợp lệ. Chỉ hỗ trợ BFS/DFS/IDFS/UCS.")
+            raise ValueError("Thuật toán không hợp lệ. Chỉ hỗ trợ BFS/DFS/IDFS/Greedy/A*/UCS.")
         t1 = time.time()
         return path, (t1 - t0), visited_count, total_cost

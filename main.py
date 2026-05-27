@@ -71,7 +71,7 @@ class PuzzleUI:
         self.goal_entry.bind('<Return>', lambda e: self.on_goal_enter())
 
         tk.Label(self.left, text='Chọn thuật toán:', fg='white', bg='#0f1720', font=self.font_label).pack(anchor='w')
-        self.algo = ttk.Combobox(self.left, values=['BFS', 'DFS', 'IDFS', 'UCS'], state='readonly', width=17, font=self.font_entry)
+        self.algo = ttk.Combobox(self.left, values=['BFS', 'DFS', 'IDFS', 'Greedy', 'A*', 'UCS'], state='readonly', width=17, font=self.font_entry)
         self.algo.set('BFS')
         self.algo.pack(pady=6, fill='x')
 
