@@ -23,6 +23,7 @@ from algorithm import a_star as a_star_module
 from algorithm import greedy as greedy_module
 from algorithm import idfs as idfs_module
 from algorithm import simple_hill_climbing as shc_module
+from algorithm import steepest_ascent_hill_climbing as sahc_module
 from algorithm import ucs as ucs_module
 from algorithm.bfs import neighbors as _neighbors
 
@@ -131,7 +132,16 @@ class PuzzleController:
             else:
                 path = None
                 total_cost = 0
+        elif algo_name == "Steepest Ascent Hill Climbing":
+            # Steepest-Ascent cũng có thể kẹt local optimum => coi như "không tìm thấy lời giải" nếu chưa tới goal.
+            hc_path, visited_count = sahc_module.steepest_ascent_hill_climbing_with_stats(start, goal)
+            if hc_path and hc_path[-1] == goal:
+                path = hc_path
+                total_cost = ucs_module.path_cost(path, goal, include_blank=True)
+            else:
+                path = None
+                total_cost = 0
         else:
-            raise ValueError("Thuật toán không hợp lệ. Chỉ hỗ trợ BFS/DFS/IDFS/Greedy/A*/UCS/Simple Hill Climbing.")
+            raise ValueError("Thuật toán không hợp lệ. Chỉ hỗ trợ BFS/DFS/IDFS/Greedy/A*/UCS/Simple Hill Climbing/Steepest Ascent Hill Climbing.")
         t1 = time.time()
         return path, (t1 - t0), visited_count, total_cost
