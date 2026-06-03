@@ -22,8 +22,11 @@ from algorithm import dfs as dfs_module
 from algorithm import a_star as a_star_module
 from algorithm import greedy as greedy_module
 from algorithm import idfs as idfs_module
+from algorithm import local_beam_search as lbs_module
+from algorithm import random_restart_hill_climbing as rrhc_module
 from algorithm import simple_hill_climbing as shc_module
 from algorithm import steepest_ascent_hill_climbing as sahc_module
+from algorithm import stochastic_hill_climbing as stoch_hc_module
 from algorithm import ucs as ucs_module
 from algorithm.bfs import neighbors as _neighbors
 
@@ -141,7 +144,26 @@ class PuzzleController:
             else:
                 path = None
                 total_cost = 0
+        elif algo_name == "Stochastic Hill Climbing":
+            hc_path, visited_count = stoch_hc_module.stochastic_hill_climbing_with_stats(start, goal)
+            if hc_path and hc_path[-1] == goal:
+                path = hc_path
+                total_cost = ucs_module.path_cost(path, goal, include_blank=True)
+            else:
+                path = None
+                total_cost = 0
+        elif algo_name == "Random Restart Hill Climbing":
+            hc_path, visited_count = rrhc_module.random_restart_hill_climbing_with_stats(start, goal)
+            if hc_path and hc_path[-1] == goal:
+                path = hc_path
+                total_cost = ucs_module.path_cost(path, goal, include_blank=True)
+            else:
+                path = None
+                total_cost = 0
+        elif algo_name == "Local Beam Search":
+            path, visited_count = lbs_module.local_beam_search_with_stats(start, goal, k=5)
+            total_cost = ucs_module.path_cost(path, goal, include_blank=True) if path else 0
         else:
-            raise ValueError("Thuật toán không hợp lệ. Chỉ hỗ trợ BFS/DFS/IDFS/Greedy/A*/UCS/Simple Hill Climbing/Steepest Ascent Hill Climbing.")
+            raise ValueError("Thuật toán không hợp lệ. Chỉ hỗ trợ BFS/DFS/IDFS/Greedy/A*/UCS/Simple Hill Climbing/Steepest Ascent Hill Climbing/Stochastic Hill Climbing/Random Restart Hill Climbing/Local Beam Search.")
         t1 = time.time()
         return path, (t1 - t0), visited_count, total_cost
