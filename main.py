@@ -55,7 +55,8 @@ class PuzzleUI:
         self.right.pack(side='right', fill='y')
 
         # Cụm điều khiển bên trái
-        tk.Label(self.left, text='Nhập trạng thái ban đầu (0 là ô trống):', fg='white', bg='#0f1720', font=self.font_label).pack(anchor='w')
+        self.start_label = tk.Label(self.left, text='Nhập trạng thái ban đầu (0 là ô trống):', fg='white', bg='#0f1720', font=self.font_label)
+        self.start_label.pack(anchor='w')
         self.start_var = tk.StringVar(value='283164705')
         self.start_entry = tk.Entry(self.left, textvariable=self.start_var, width=20, font=self.font_entry)
         self.start_entry.pack(pady=6, fill='x')
@@ -71,9 +72,10 @@ class PuzzleUI:
         self.goal_entry.bind('<Return>', lambda e: self.on_goal_enter())
 
         tk.Label(self.left, text='Chọn thuật toán:', fg='white', bg='#0f1720', font=self.font_label).pack(anchor='w')
-        self.algo = ttk.Combobox(self.left, values=['BFS', 'DFS', 'IDFS', 'Greedy', 'A*', 'UCS', 'Simple Hill Climbing', 'Steepest Ascent Hill Climbing', 'Stochastic Hill Climbing', 'Random Restart Hill Climbing', 'Local Beam Search'], state='readonly', width=17, font=self.font_entry)
+        self.algo = ttk.Combobox(self.left, values=['BFS', 'DFS', 'IDFS', 'Greedy', 'A*', 'Belief State', 'UCS', 'Simple Hill Climbing', 'Steepest Ascent Hill Climbing', 'Stochastic Hill Climbing', 'Random Restart Hill Climbing', 'Simulated Annealing', 'Local Beam Search'], state='readonly', width=17, font=self.font_entry)
         self.algo.set('BFS')
         self.algo.pack(pady=6, fill='x')
+        self.algo.bind('<<ComboboxSelected>>', lambda e: self.on_algo_change())
 
         self.solve_btn = tk.Button(self.left, text='Giải', command=self.on_solve, bg='#0b1220', fg='white', font=self.font_button)
         self.solve_btn.pack(pady=10, fill='x')
@@ -90,6 +92,8 @@ class PuzzleUI:
         self.cost_label.pack(anchor='w')
         self.visited_label = tk.Label(self.info_frame, text='Số trạng thái đã duyệt: -', fg='white', bg='#0f1720', font=self.font_label)
         self.visited_label.pack(anchor='w')
+        self.belief_label = tk.Label(self.center, text='', fg='#ffd166', bg='#0f1720', font=self.font_label, justify='left', anchor='w')
+        self.belief_label.pack(anchor='w', pady=(4, 0))
 
         tk.Label(self.center, text='Các bước:', fg='white', bg='#0f1720', font=self.font_label).pack(anchor='w', pady=(8,0))
         # Đặt width/height nhỏ để widget không “đòi” kích thước quá lớn theo DPI.
@@ -155,8 +159,10 @@ class PuzzleUI:
         self.current_index = 0
         self.animating = False
         self.visited_count = None
+        self.belief_mode = False
 
         self.update_grid(tuple(range(1,9))+ (0,))
+        self.on_algo_change()
 
     def update_grid(self, state):
         for i, val in enumerate(state):
@@ -166,19 +172,36 @@ class PuzzleUI:
             else:
                 b.config(text=str(val), bg='#1287d6')
 
+    def on_algo_change(self):
+        self.belief_mode = self.algo.get() == 'Belief State'
+        if self.belief_mode:
+            self.start_label.config(text='Trạng thái ban đầu: tự sinh từ goal')
+            self.start_entry.config(state='disabled')
+            self.random_btn.config(state='disabled')
+            self.belief_label.config(text='Sẽ sinh 2 trạng thái niềm tin và giải cả hai về cùng goal.')
+        else:
+            self.start_label.config(text='Nhập trạng thái ban đầu (0 là ô trống):')
+            self.start_entry.config(state='normal')
+            self.random_btn.config(state='normal')
+            self.belief_label.config(text='')
+
     def on_solve(self):
         try:
-            start = self.controller.parse_state(self.start_var.get())
             goal = self.controller.parse_state(self.goal_var.get())
+            if self.belief_mode:
+                start = None
+            else:
+                start = self.controller.parse_state(self.start_var.get())
         except ValueError as e:
             messagebox.showerror('Lỗi', str(e))
             return
-        if not self.controller.is_solvable(start, goal):
+        if not self.belief_mode and not self.controller.is_solvable(start, goal):
             messagebox.showerror('Lỗi', 'Trạng thái không có lời giải cho trạng thái đích này (không thể giải được).')
             return
 
         # Khoá input khi đang solve/animate để tránh lệch giữa goal hiển thị và kết quả tính toán
-        self.start_entry.config(state='disabled')
+        if not self.belief_mode:
+            self.start_entry.config(state='disabled')
         self.goal_entry.config(state='disabled')
         self.algo.config(state='disabled')
         self.solve_btn.config(state='disabled')
@@ -192,6 +215,8 @@ class PuzzleUI:
         thread.start()
 
     def on_start_enter(self):
+        if self.belief_mode:
+            return
         try:
             state = self.controller.parse_state(self.start_var.get())
         except ValueError:
@@ -224,9 +249,14 @@ class PuzzleUI:
         self.steps_label.config(text='Số bước: -')
         self.cost_label.config(text='Tổng chi phí (g): -')
         self.visited_label.config(text='Số trạng thái đã duyệt: -')
+        if self.belief_mode:
+            self.start_var.set('')
+            self.update_grid(tuple(range(1, 9)) + (0,))
 
     def on_random_start(self):
         """Sinh state bắt đầu ngẫu nhiên (đảm bảo solvable theo goal hiện tại)."""
+        if self.belief_mode:
+            return
         try:
             goal = self.controller.parse_state(self.goal_var.get())
         except ValueError:
@@ -240,6 +270,12 @@ class PuzzleUI:
 
     def run_solver(self, start, goal, algo):
         try:
+            if algo == 'Belief State':
+                result = self.controller.solve_belief_state(goal)
+                if result.path1 is None or result.path2 is None:
+                    raise ValueError('Không tìm thấy lời giải cho một trong hai trạng thái niềm tin.')
+                self.root.after(0, lambda: self.on_belief_solution_found(result))
+                return
             path, duration, visited_count, total_cost = self.controller.solve(start, goal, algo)
         except Exception:
             path, duration, visited_count, total_cost = None, 0.0, None, None
@@ -247,15 +283,40 @@ class PuzzleUI:
             self.root.after(0, lambda: messagebox.showinfo('Kết quả', 'Không tìm thấy lời giải.'))
             def _unlock():
                 self.solve_btn.config(state='normal')
-                self.start_entry.config(state='normal')
+                if not self.belief_mode:
+                    self.start_entry.config(state='normal')
                 self.goal_entry.config(state='normal')
                 self.algo.config(state='readonly')
+                self.on_algo_change()
             self.root.after(0, _unlock)
             return
         self.solution = path
         self.visited_count = visited_count
         self.current_index = 0
         self.root.after(0, lambda: self.on_solution_found(duration, total_cost))
+
+    def on_belief_solution_found(self, result):
+        self.time_label.config(text=f'Thời gian chạy: {result.duration:.3f}s')
+        self.steps_label.config(text=f'Số bước đồng bộ: {len(result.moves)}')
+        self.cost_label.config(text=f'Tổng chi phí (g): {result.total_cost}')
+        self.visited_label.config(text=f'Số trạng thái đã duyệt: {result.visited_count}')
+        self.belief_label.config(
+            text=f'State 1: {"".join(str(x) for x in result.start1)}\nState 2: {"".join(str(x) for x in result.start2)}'
+        )
+        self.start_var.set(''.join(str(x) for x in result.start1))
+        self.update_grid(result.start1)
+        self.steps_text.delete('1.0', 'end')
+        self.steps_text.insert('end', ' '.join(result.moves))
+        self.solve_btn.config(state='normal')
+        self.goal_entry.config(state='normal')
+        self.algo.config(state='readonly')
+        self.start_label.config(text='Trạng thái ban đầu: tự sinh từ goal')
+        self.start_entry.config(state='disabled')
+        self.random_btn.config(state='disabled')
+        self.solution = result.path1 or []
+        self.visited_count = result.visited_count
+        self.current_index = 0
+        self.start_animation()
 
     def on_solution_found(self, duration, total_cost):
         self.time_label.config(text=f'Thời gian chạy: {duration:.3f}s')
@@ -273,9 +334,11 @@ class PuzzleUI:
         self.steps_text.insert('end', ' '.join(moves))
         self.update_grid(self.solution[0])
         self.solve_btn.config(state='normal')
-        self.start_entry.config(state='normal')
+        if not self.belief_mode:
+            self.start_entry.config(state='normal')
         self.goal_entry.config(state='normal')
         self.algo.config(state='readonly')
+        self.on_algo_change()
         # Tự chạy animation theo lời giải
         self.start_animation()
 

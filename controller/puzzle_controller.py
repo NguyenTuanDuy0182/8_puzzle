@@ -20,9 +20,11 @@ from typing import List, Optional, Sequence, Tuple
 from algorithm import bfs as bfs_module
 from algorithm import dfs as dfs_module
 from algorithm import a_star as a_star_module
+from algorithm import belief_state as belief_state_module
 from algorithm import greedy as greedy_module
 from algorithm import idfs as idfs_module
 from algorithm import local_beam_search as lbs_module
+from algorithm import simulated_annealing as sa_module
 from algorithm import random_restart_hill_climbing as rrhc_module
 from algorithm import simple_hill_climbing as shc_module
 from algorithm import steepest_ascent_hill_climbing as sahc_module
@@ -97,6 +99,11 @@ class PuzzleController:
         return state
 
     @staticmethod
+    def solve_belief_state(goal: State, steps: int = 60):
+        """Sinh 2 trạng thái niềm tin và giải cả hai về cùng goal."""
+        return belief_state_module.solve_belief_state(goal, steps=steps)
+
+    @staticmethod
     def solve(start: State, goal: State, algo_name: str) -> tuple[Optional[List[State]], float, int, int]:
         """Chạy solver theo lựa chọn.
 
@@ -123,6 +130,9 @@ class PuzzleController:
             total_cost = ucs_module.path_cost(path, goal, include_blank=True) if path else 0
         elif algo_name in ("A*", "AStar"):
             path, visited_count, g_goal = a_star_module.a_star_with_stats(start, goal)
+            total_cost = g_goal if path else 0
+        elif algo_name == "Belief State":
+            path, visited_count, g_goal = belief_state_module.belief_state_with_stats(start, goal)
             total_cost = g_goal if path else 0
         elif algo_name == "UCS":
             path, visited_count, total_cost = ucs_module.ucs_with_stats(start, goal, include_blank=True)
@@ -160,10 +170,18 @@ class PuzzleController:
             else:
                 path = None
                 total_cost = 0
+        elif algo_name == "Simulated Annealing":
+            sa_path, visited_count = sa_module.simulated_annealing_with_stats(start, goal)
+            if sa_path and sa_path[-1] == goal:
+                path = sa_path
+                total_cost = ucs_module.path_cost(path, goal, include_blank=True)
+            else:
+                path = None
+                total_cost = 0
         elif algo_name == "Local Beam Search":
             path, visited_count = lbs_module.local_beam_search_with_stats(start, goal, k=5)
             total_cost = ucs_module.path_cost(path, goal, include_blank=True) if path else 0
         else:
-            raise ValueError("Thuật toán không hợp lệ. Chỉ hỗ trợ BFS/DFS/IDFS/Greedy/A*/UCS/Simple Hill Climbing/Steepest Ascent Hill Climbing/Stochastic Hill Climbing/Random Restart Hill Climbing/Local Beam Search.")
+            raise ValueError("Thuật toán không hợp lệ. Chỉ hỗ trợ BFS/DFS/IDFS/Greedy/A*/Belief State/UCS/Simple Hill Climbing/Steepest Ascent Hill Climbing/Stochastic Hill Climbing/Random Restart Hill Climbing/Simulated Annealing/Local Beam Search.")
         t1 = time.time()
         return path, (t1 - t0), visited_count, total_cost
