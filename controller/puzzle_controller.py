@@ -104,6 +104,27 @@ class PuzzleController:
         return belief_state_module.solve_belief_state(goal, steps=steps)
 
     @staticmethod
+    def solve_belief_state_same_goal(start1: State, start2: State, goal1: State, goal2: State):
+        """Giải hai trạng thái niềm tin S1, S2 về cùng một đích G1 hoặc G2."""
+        from algorithm.belief_state_w_no_goal import solve_belief_state_same_goal
+        return solve_belief_state_same_goal(start1, start2, goal1, goal2)
+
+    @staticmethod
+    def solve_belief_state_same_goal_auto(base_goal: State, steps: int = 25):
+        """Tự sinh ngẫu nhiên S1, S2 khác nhau và G1, G2 khác nhau từ base_goal, rồi giải A*."""
+        from algorithm.belief_state_w_no_goal import solve_belief_state_same_goal_auto
+        return solve_belief_state_same_goal_auto(base_goal, steps=steps)
+
+    @staticmethod
+    def solve_part_belief_state(start_pattern: State, goal_pattern: State):
+        """Giải bài toán A* cho tập BS={S1,S2} và BG={G1,G2} thỏa mãn các ô đã biết."""
+        from algorithm.part_belief_state import solve_part_belief_state
+        return solve_part_belief_state(start_pattern, goal_pattern)
+
+
+
+
+    @staticmethod
     def solve(start: State, goal: State, algo_name: str) -> tuple[Optional[List[State]], float, int, int]:
         """Chạy solver theo lựa chọn.
 
@@ -131,6 +152,9 @@ class PuzzleController:
         elif algo_name in ("A*", "AStar"):
             path, visited_count, g_goal = a_star_module.a_star_with_stats(start, goal)
             total_cost = g_goal if path else 0
+        elif algo_name == "AND-OR":
+            from algorithm.AND_OR import and_or_graph_search_with_stats
+            path, visited_count, total_cost = and_or_graph_search_with_stats(start, goal)
         elif algo_name == "Belief State":
             path, visited_count, g_goal = belief_state_module.belief_state_with_stats(start, goal)
             total_cost = g_goal if path else 0

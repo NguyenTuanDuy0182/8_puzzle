@@ -65,14 +65,15 @@ class PuzzleUI:
         self.random_btn = tk.Button(self.left, text='Ngẫu nhiên', command=self.on_random_start, bg='#0b1220', fg='white', font=self.font_button)
         self.random_btn.pack(pady=(0, 10), fill='x')
 
-        tk.Label(self.left, text='Nhập trạng thái đích:', fg='white', bg='#0f1720', font=self.font_label).pack(anchor='w')
+        self.goal_label = tk.Label(self.left, text='Nhập trạng thái đích:', fg='white', bg='#0f1720', font=self.font_label)
+        self.goal_label.pack(anchor='w')
         self.goal_var = tk.StringVar(value='123804765')
         self.goal_entry = tk.Entry(self.left, textvariable=self.goal_var, width=20, font=self.font_entry)
         self.goal_entry.pack(pady=6, fill='x')
         self.goal_entry.bind('<Return>', lambda e: self.on_goal_enter())
 
         tk.Label(self.left, text='Chọn thuật toán:', fg='white', bg='#0f1720', font=self.font_label).pack(anchor='w')
-        self.algo = ttk.Combobox(self.left, values=['BFS', 'DFS', 'IDFS', 'Greedy', 'A*', 'Belief State', 'UCS', 'Simple Hill Climbing', 'Steepest Ascent Hill Climbing', 'Stochastic Hill Climbing', 'Random Restart Hill Climbing', 'Simulated Annealing', 'Local Beam Search'], state='readonly', width=17, font=self.font_entry)
+        self.algo = ttk.Combobox(self.left, values=['BFS', 'DFS', 'IDFS', 'Greedy', 'A*', 'Belief State', 'Belief State (2 Goals)', 'Part Belief State', 'AND-OR', 'UCS', 'Simple Hill Climbing', 'Steepest Ascent Hill Climbing', 'Stochastic Hill Climbing', 'Random Restart Hill Climbing', 'Simulated Annealing', 'Local Beam Search'], state='readonly', width=17, font=self.font_entry)
         self.algo.set('BFS')
         self.algo.pack(pady=6, fill='x')
         self.algo.bind('<<ComboboxSelected>>', lambda e: self.on_algo_change())
@@ -160,6 +161,8 @@ class PuzzleUI:
         self.animating = False
         self.visited_count = None
         self.belief_mode = False
+        self.belief_2_goals_mode = False
+        self.part_belief_mode = False
 
         self.update_grid(tuple(range(1,9))+ (0,))
         self.on_algo_change()
@@ -173,35 +176,81 @@ class PuzzleUI:
                 b.config(text=str(val), bg='#1287d6')
 
     def on_algo_change(self):
-        self.belief_mode = self.algo.get() == 'Belief State'
+        algo = self.algo.get()
+        self.belief_mode = algo == 'Belief State'
+        self.belief_2_goals_mode = algo == 'Belief State (2 Goals)'
+        self.part_belief_mode = algo == 'Part Belief State'
+
         if self.belief_mode:
             self.start_label.config(text='Trạng thái ban đầu: tự sinh từ goal')
             self.start_entry.config(state='disabled')
             self.random_btn.config(state='disabled')
+            self.goal_label.config(text='Nhập trạng thái đích:')
+            self.goal_entry.config(state='normal')
             self.belief_label.config(text='Sẽ sinh 2 trạng thái niềm tin và giải cả hai về cùng goal.')
+        elif self.belief_2_goals_mode:
+            self.start_label.config(text='Trạng thái ban đầu: tự sinh')
+            self.start_entry.config(state='disabled')
+            self.random_btn.config(state='disabled')
+            self.goal_label.config(text='Trạng thái đích: tự sinh')
+            self.goal_entry.config(state='disabled')
+            self.belief_label.config(text='Sẽ tự sinh S1, S2 (khác nhau) và G1, G2 (khác nhau).')
+        elif self.part_belief_mode:
+            self.start_label.config(text='Nhập S_pattern (0 là wildcard):')
+            self.start_entry.config(state='normal')
+            self.random_btn.config(state='disabled')
+            self.goal_label.config(text='Nhập G_pattern (0 là wildcard):')
+            self.goal_entry.config(state='normal')
+            self.belief_label.config(text='Giải đưa S1, S2 khớp với S_pattern về cùng một đích G1 hoặc G2 khớp với G_pattern.')
+            # Prefill mẫu để dễ kiểm thử
+            if len(self.start_var.get()) != 9 or ',' in self.start_var.get() or self.start_var.get() == '283164705':
+                self.start_var.set('860000000')
+            if len(self.goal_var.get()) != 9 or ',' in self.goal_var.get() or self.goal_var.get() == '123804765':
+                self.goal_var.set('123000000')
         else:
             self.start_label.config(text='Nhập trạng thái ban đầu (0 là ô trống):')
             self.start_entry.config(state='normal')
             self.random_btn.config(state='normal')
+            self.goal_label.config(text='Nhập trạng thái đích:')
+            self.goal_entry.config(state='normal')
             self.belief_label.config(text='')
 
     def on_solve(self):
         try:
-            goal = self.controller.parse_state(self.goal_var.get())
-            if self.belief_mode:
+            if self.belief_2_goals_mode:
+                # Lấy base_goal từ goal_var hiện tại làm cơ sở sinh các trạng thái
+                try:
+                    goal = self.controller.parse_state(self.goal_var.get().split(',')[0].strip())
+                except ValueError:
+                    goal = (1, 2, 3, 8, 0, 4, 7, 6, 5) # Mặc định
                 start = None
+            elif self.part_belief_mode:
+                def parse_pattern(raw: str) -> tuple[int, ...]:
+                    s = raw.strip()
+                    if len(s) != 9 or not all(ch.isdigit() for ch in s):
+                        raise ValueError("Pattern phải gồm 9 chữ số 0-8, ví dụ: 860000000")
+                    state = tuple(int(ch) for ch in s)
+                    non_zeros = [x for x in state if x != 0]
+                    if len(non_zeros) != len(set(non_zeros)):
+                        raise ValueError("Các ô đã biết trong Pattern không được trùng nhau.")
+                    return state
+                start = parse_pattern(self.start_var.get())
+                goal = parse_pattern(self.goal_var.get())
             else:
-                start = self.controller.parse_state(self.start_var.get())
+                goal = self.controller.parse_state(self.goal_var.get())
+                if self.belief_mode:
+                    start = None
+                else:
+                    start = self.controller.parse_state(self.start_var.get())
         except ValueError as e:
             messagebox.showerror('Lỗi', str(e))
             return
-        if not self.belief_mode and not self.controller.is_solvable(start, goal):
+        if not self.belief_mode and not self.belief_2_goals_mode and not self.part_belief_mode and not self.controller.is_solvable(start, goal):
             messagebox.showerror('Lỗi', 'Trạng thái không có lời giải cho trạng thái đích này (không thể giải được).')
             return
 
         # Khoá input khi đang solve/animate để tránh lệch giữa goal hiển thị và kết quả tính toán
-        if not self.belief_mode:
-            self.start_entry.config(state='disabled')
+        self.start_entry.config(state='disabled')
         self.goal_entry.config(state='disabled')
         self.algo.config(state='disabled')
         self.solve_btn.config(state='disabled')
@@ -215,7 +264,7 @@ class PuzzleUI:
         thread.start()
 
     def on_start_enter(self):
-        if self.belief_mode:
+        if self.belief_mode or self.belief_2_goals_mode or self.part_belief_mode:
             return
         try:
             state = self.controller.parse_state(self.start_var.get())
@@ -235,6 +284,17 @@ class PuzzleUI:
         self.update_grid(state)
 
     def on_goal_enter(self):
+        if self.belief_2_goals_mode or self.part_belief_mode:
+            self.animating = False
+            self.solution = []
+            self.current_index = 0
+            self.steps_text.delete('1.0', 'end')
+            self.time_label.config(text='Thời gian chạy: -')
+            self.steps_label.config(text='Số bước: -')
+            self.cost_label.config(text='Tổng chi phí (g): -')
+            self.visited_label.config(text='Số trạng thái đã duyệt: -')
+            self.update_grid(tuple(range(1, 9)) + (0,))
+            return
         try:
             _ = self.controller.parse_state(self.goal_var.get())
         except ValueError:
@@ -255,7 +315,7 @@ class PuzzleUI:
 
     def on_random_start(self):
         """Sinh state bắt đầu ngẫu nhiên (đảm bảo solvable theo goal hiện tại)."""
-        if self.belief_mode:
+        if self.belief_mode or self.belief_2_goals_mode or self.part_belief_mode:
             return
         try:
             goal = self.controller.parse_state(self.goal_var.get())
@@ -276,14 +336,28 @@ class PuzzleUI:
                     raise ValueError('Không tìm thấy lời giải cho một trong hai trạng thái niềm tin.')
                 self.root.after(0, lambda: self.on_belief_solution_found(result))
                 return
+            elif algo == 'Belief State (2 Goals)':
+                result = self.controller.solve_belief_state_same_goal_auto(goal)
+                if result.path1 is None or result.path2 is None:
+                    raise ValueError('Không tìm thấy lời giải để S1 và S2 cùng hội tụ về G1 hoặc G2.')
+                self.root.after(0, lambda: self.on_belief_solution_found(result))
+                return
+            elif algo == 'Part Belief State':
+                result = self.controller.solve_part_belief_state(start, goal)
+                if result.path1 is None or result.path2 is None:
+                    raise ValueError('Không tìm thấy lời giải để S1 và S2 cùng hội tụ về G1 hoặc G2.')
+                self.root.after(0, lambda: self.on_belief_solution_found(result))
+                return
             path, duration, visited_count, total_cost = self.controller.solve(start, goal, algo)
-        except Exception:
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
             path, duration, visited_count, total_cost = None, 0.0, None, None
         if path is None:
             self.root.after(0, lambda: messagebox.showinfo('Kết quả', 'Không tìm thấy lời giải.'))
             def _unlock():
                 self.solve_btn.config(state='normal')
-                if not self.belief_mode:
+                if not self.belief_mode and not self.belief_2_goals_mode and not self.part_belief_mode:
                     self.start_entry.config(state='normal')
                 self.goal_entry.config(state='normal')
                 self.algo.config(state='readonly')
@@ -300,19 +374,44 @@ class PuzzleUI:
         self.steps_label.config(text=f'Số bước đồng bộ: {len(result.moves)}')
         self.cost_label.config(text=f'Tổng chi phí (g): {result.total_cost}')
         self.visited_label.config(text=f'Số trạng thái đã duyệt: {result.visited_count}')
-        self.belief_label.config(
-            text=f'State 1: {"".join(str(x) for x in result.start1)}\nState 2: {"".join(str(x) for x in result.start2)}'
-        )
-        self.start_var.set(''.join(str(x) for x in result.start1))
+        
+        if self.belief_2_goals_mode or self.part_belief_mode:
+            self.belief_label.config(
+                text=f'S1: {"".join(str(x) for x in result.start1)}  |  S2: {"".join(str(x) for x in result.start2)}\nG1: {"".join(str(x) for x in result.goals[0])}  |  G2: {"".join(str(x) for x in result.goals[1])}'
+            )
+            self.start_var.set(f'{"".join(str(x) for x in result.start1)}, {"".join(str(x) for x in result.start2)}')
+            self.goal_var.set(f'{"".join(str(x) for x in result.goals[0])}, {"".join(str(x) for x in result.goals[1])}')
+        else:
+            self.belief_label.config(
+                text=f'State 1: {"".join(str(x) for x in result.start1)}\nState 2: {"".join(str(x) for x in result.start2)}'
+            )
+            self.start_var.set(''.join(str(x) for x in result.start1))
+
         self.update_grid(result.start1)
         self.steps_text.delete('1.0', 'end')
         self.steps_text.insert('end', ' '.join(result.moves))
         self.solve_btn.config(state='normal')
         self.goal_entry.config(state='normal')
         self.algo.config(state='readonly')
-        self.start_label.config(text='Trạng thái ban đầu: tự sinh từ goal')
-        self.start_entry.config(state='disabled')
-        self.random_btn.config(state='disabled')
+        
+        if self.belief_mode:
+            self.start_label.config(text='Trạng thái ban đầu: tự sinh từ goal')
+            self.start_entry.config(state='disabled')
+            self.random_btn.config(state='disabled')
+            self.goal_entry.config(state='normal')
+        elif self.belief_2_goals_mode:
+            self.start_label.config(text='Trạng thái ban đầu: tự sinh')
+            self.start_entry.config(state='disabled')
+            self.random_btn.config(state='disabled')
+            self.goal_label.config(text='Trạng thái đích: tự sinh')
+            self.goal_entry.config(state='disabled')
+        elif self.part_belief_mode:
+            self.start_label.config(text='Nhập S_pattern (0 là wildcard):')
+            self.start_entry.config(state='normal')
+            self.random_btn.config(state='disabled')
+            self.goal_label.config(text='Nhập G_pattern (0 là wildcard):')
+            self.goal_entry.config(state='normal')
+            
         self.solution = result.path1 or []
         self.visited_count = result.visited_count
         self.current_index = 0
