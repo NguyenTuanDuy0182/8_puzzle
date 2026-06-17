@@ -481,14 +481,181 @@ class PuzzleUI:
             self.next_btn.config(state='normal')
 
 
+class MapColoringUI:
+    def __init__(self, root):
+        self.root = root
+        from controller.coloring_controller import ColoringController
+        self.controller = ColoringController()
+        root.title('Australia Map Coloring')
+        root.configure(bg='#0f1720')
+
+        try:
+            self.ui_scale = float(root.tk.call('tk', 'scaling'))
+        except Exception:
+            self.ui_scale = 1.0
+
+        def _fs(pt: float) -> int:
+            return max(8, int(round(pt / max(1.0, self.ui_scale))))
+
+        self.font_title = ('Helvetica', _fs(18), 'bold')
+        self.font_label = ('Helvetica', _fs(11))
+        self.font_button = ('Helvetica', _fs(11), 'bold')
+        self.font_entry = ('Consolas', _fs(12))
+
+        self.mainframe = tk.Frame(root, bg='#0f1720')
+        self.mainframe.pack(fill='both', expand=True, padx=12, pady=12)
+
+        self.left = tk.Frame(self.mainframe, bg='#0f1720', width=260)
+        self.right = tk.Frame(self.mainframe, bg='#0f1720')
+
+        self.left.pack_propagate(False)
+        self.left.pack(side='left', fill='y', padx=(0,16))
+        self.right.pack(side='left', fill='both', expand=True)
+
+        tk.Label(self.left, text='Thuật toán tô màu:', fg='white', bg='#0f1720', font=self.font_label).pack(anchor='w', pady=(0, 5))
+        self.algo = ttk.Combobox(self.left, values=['Backtracking', 'Forward Checking', 'AC-3', 'Min-Conflicts'], state='readonly', font=self.font_entry)
+        self.algo.set('Backtracking')
+        self.algo.pack(fill='x', pady=5)
+
+        self.solve_btn = tk.Button(self.left, text='Giải', bg='#0b1220', fg='white', font=self.font_button, command=self.on_solve)
+        self.solve_btn.pack(fill='x', pady=(20, 10))
+
+        self.reset_btn = tk.Button(self.left, text='Làm mới', bg='#0b1220', fg='white', font=self.font_button, command=self.on_reset)
+        self.reset_btn.pack(fill='x', pady=(0, 10))
+
+        self.status_label = tk.Label(self.left, text='', fg='#3dd0ff', bg='#0f1720', font=self.font_label)
+        self.status_label.pack(anchor='w', pady=10)
+
+        self.map_frame = tk.Frame(self.right, bg='#0f1720')
+        self.map_frame.pack(fill='both', expand=True)
+
+        # Single Map Canvas
+        self.canvas_map = tk.Canvas(self.map_frame, width=500, height=500, bg='#1f2937', highlightthickness=0)
+        self.canvas_map.pack(padx=20, pady=20, expand=True)
+
+        self.regions = {
+            'WA': [20, 50, 120, 50, 120, 250, 20, 250],
+            'NT': [120, 50, 200, 50, 200, 140, 120, 140],
+            'SA': [120, 140, 200, 140, 200, 250, 120, 250],
+            'Q':  [200, 50, 280, 50, 280, 170, 200, 170],
+            'NSW': [200, 170, 280, 170, 280, 220, 200, 220],
+            'V':  [200, 220, 270, 220, 270, 250, 200, 250],
+            'T':  [220, 270, 250, 270, 250, 290, 220, 290]
+        }
+
+        self.draw_map(self.canvas_map, color_map=None)
+
+    def draw_map(self, canvas, color_map=None):
+        canvas.delete("all")
+        default_color = '#d1d5db'
+
+        # Scale map up for better visibility in a single view
+        scale = 1.5
+        for region, coords in self.regions.items():
+            color = default_color
+            if color_map and region in color_map:
+                color = color_map[region]
+            
+            scaled_coords = [c * scale for c in coords]
+            canvas.create_polygon(scaled_coords, fill=color, outline='black', width=2)
+
+            cx = sum(scaled_coords[0::2]) / (len(scaled_coords)//2)
+            cy = sum(scaled_coords[1::2]) / (len(scaled_coords)//2)
+            canvas.create_text(cx, cy, text=region, font=('Helvetica', 12, 'bold'), fill='black')
+
+    def on_reset(self):
+        self.status_label.config(text="")
+        self.draw_map(self.canvas_map, color_map=None)
+
+    def on_solve(self):
+        self.status_label.config(text="Đang giải...")
+        
+        algo = self.algo.get()
+        import threading
+        
+        def _solve():
+            if algo == 'Backtracking':
+                result = self.controller.solve_backtracking()
+            elif algo == 'Forward Checking':
+                result = self.controller.solve_forward_checking()
+            elif algo == 'AC-3':
+                result = self.controller.solve_ac3()
+            elif algo == 'Min-Conflicts':
+                result = self.controller.solve_min_conflicts()
+            else:
+                self.root.after(0, lambda: self.status_label.config(text="Thuật toán chưa được cài đặt!"))
+                return
+                
+            if result:
+                self.root.after(0, lambda: self.show_result(result))
+            else:
+                self.root.after(0, lambda: self.status_label.config(text="Không tìm thấy lời giải!"))
+                
+        threading.Thread(target=_solve, daemon=True).start()
+
+    def show_result(self, result):
+        self.draw_map(self.canvas_map, result)
+        self.status_label.config(text="Hoàn thành!")
+
+
+class MainMenuUI:
+    def __init__(self, root):
+        self.root = root
+        root.title('AI Algorithms - Main Menu')
+        root.configure(bg='#0f1720')
+        
+        # Center the window
+        width, height = 400, 300
+        root.geometry(f'{width}x{height}')
+        root.minsize(width, height)
+        root.maxsize(width, height)
+        root.resizable(False, False)
+
+        tk.Label(root, text='Chọn Bài Toán', font=('Helvetica', 20, 'bold'), bg='#0f1720', fg='white').pack(pady=40)
+        
+        tk.Button(root, text='8-Puzzle Solver', font=('Helvetica', 14, 'bold'), bg='#0b1220', fg='white', command=self.open_puzzle).pack(pady=10, fill='x', padx=50)
+        tk.Button(root, text='Australia Map Coloring', font=('Helvetica', 14, 'bold'), bg='#0b1220', fg='white', command=self.open_coloring).pack(pady=10, fill='x', padx=50)
+
+    def open_puzzle(self):
+        window = tk.Toplevel(self.root)
+        width, height = 1080, 608
+        window.geometry(f'{width}x{height}')
+        window.minsize(width, height)
+        window.maxsize(width, height)
+        window.resizable(False, False)
+        # Apply Windows styling to hide maximize button if needed
+        self._apply_win_style(window)
+        app = PuzzleUI(window)
+
+    def open_coloring(self):
+        window = tk.Toplevel(self.root)
+        width, height = 950, 600
+        window.geometry(f'{width}x{height}')
+        window.minsize(width, height)
+        window.maxsize(width, height)
+        window.resizable(False, False)
+        self._apply_win_style(window)
+        app = MapColoringUI(window)
+
+    def _apply_win_style(self, window):
+        if sys.platform == 'win32':
+            try:
+                import ctypes
+                GWL_STYLE = -16
+                WS_MAXIMIZEBOX = 0x00010000
+                WS_SIZEBOX = 0x00040000
+                window.update_idletasks()
+                hwnd = window.winfo_id()
+                style = ctypes.windll.user32.GetWindowLongW(hwnd, GWL_STYLE)
+                style = style & ~WS_MAXIMIZEBOX & ~WS_SIZEBOX
+                ctypes.windll.user32.SetWindowLongW(hwnd, GWL_STYLE, style)
+                ctypes.windll.user32.SetWindowPos(hwnd, None, 0, 0, 0, 0, 0x0027)
+            except Exception:
+                pass
+
+
 def main():
     root = tk.Tk()
-    width, height = 1080, 608
-    root.geometry(f'{width}x{height}')
-    root.minsize(width, height)
-    root.maxsize(width, height)
-    root.resizable(False, False)
-
     if sys.platform == 'win32':
         try:
             import ctypes
@@ -506,7 +673,7 @@ def main():
         except Exception:
             pass
 
-    app = PuzzleUI(root)
+    app = MainMenuUI(root)
     root.mainloop()
 
 
