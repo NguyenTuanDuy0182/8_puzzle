@@ -30,6 +30,9 @@ from algorithm import simple_hill_climbing as shc_module
 from algorithm import steepest_ascent_hill_climbing as sahc_module
 from algorithm import stochastic_hill_climbing as stoch_hc_module
 from algorithm import ucs as ucs_module
+from algorithm import minimax as minimax_module
+from algorithm import alpha_beta as alpha_beta_module
+from algorithm import expectimax as expectimax_module
 from algorithm.bfs import neighbors as _neighbors
 
 State = Tuple[int, int, int, int, int, int, int, int, int]
@@ -205,7 +208,16 @@ class PuzzleController:
         elif algo_name == "Local Beam Search":
             path, visited_count = lbs_module.local_beam_search_with_stats(start, goal, k=5)
             total_cost = ucs_module.path_cost(path, goal, include_blank=True) if path else 0
+        elif algo_name == "Minimax":
+            path, visited_count = minimax_module.minimax_with_stats(start, goal)
+            total_cost = ucs_module.path_cost(path, goal, include_blank=True) if path else 0
+        elif algo_name == "Alpha-Beta":
+            path, visited_count = alpha_beta_module.alpha_beta_with_stats(start, goal)
+            total_cost = ucs_module.path_cost(path, goal, include_blank=True) if path else 0
+        elif algo_name == "Expectimax":
+            path, visited_count = expectimax_module.expectimax_with_stats(start, goal)
+            total_cost = ucs_module.path_cost(path, goal, include_blank=True) if path else 0
         else:
-            raise ValueError("Thuật toán không hợp lệ. Chỉ hỗ trợ BFS/DFS/IDFS/Greedy/A*/Belief State/UCS/Simple Hill Climbing/Steepest Ascent Hill Climbing/Stochastic Hill Climbing/Random Restart Hill Climbing/Simulated Annealing/Local Beam Search.")
+            raise ValueError("Thuật toán không hợp lệ. Chỉ hỗ trợ BFS/DFS/IDFS/Greedy/A*/Belief State/UCS/Simple Hill Climbing/Steepest Ascent Hill Climbing/Stochastic Hill Climbing/Random Restart Hill Climbing/Simulated Annealing/Local Beam Search/Minimax/Alpha-Beta/Expectimax.")
         t1 = time.time()
         return path, (t1 - t0), visited_count, total_cost

@@ -73,7 +73,7 @@ class PuzzleUI:
         self.goal_entry.bind('<Return>', lambda e: self.on_goal_enter())
 
         tk.Label(self.left, text='Chọn thuật toán:', fg='white', bg='#0f1720', font=self.font_label).pack(anchor='w')
-        self.algo = ttk.Combobox(self.left, values=['BFS', 'DFS', 'IDFS', 'Greedy', 'A*', 'Belief State', 'Belief State (2 Goals)', 'Part Belief State', 'AND-OR', 'UCS', 'Simple Hill Climbing', 'Steepest Ascent Hill Climbing', 'Stochastic Hill Climbing', 'Random Restart Hill Climbing', 'Simulated Annealing', 'Local Beam Search'], state='readonly', width=17, font=self.font_entry)
+        self.algo = ttk.Combobox(self.left, values=['BFS', 'DFS', 'IDFS', 'Greedy', 'A*', 'Belief State', 'Belief State (2 Goals)', 'Part Belief State', 'AND-OR', 'UCS', 'Simple Hill Climbing', 'Steepest Ascent Hill Climbing', 'Stochastic Hill Climbing', 'Random Restart Hill Climbing', 'Simulated Annealing', 'Local Beam Search', 'Minimax', 'Alpha-Beta', 'Expectimax'], state='readonly', width=17, font=self.font_entry)
         self.algo.set('BFS')
         self.algo.pack(pady=6, fill='x')
         self.algo.bind('<<ComboboxSelected>>', lambda e: self.on_algo_change())
